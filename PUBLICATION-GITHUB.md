@@ -7,7 +7,14 @@ Ce dossier est prêt à être publié dans un dépôt nommé `UniversalServerLoa
 1. Créez un dépôt GitHub public vide nommé `UniversalServerLoader`.
 2. Importez tout le contenu de ce dossier, sauf le sous-dossier `_RELEASES`.
 3. Utilisez `main` comme branche principale.
-4. Description conseillée : `Lanceur et superviseur local pour serveurs Minecraft Paper, avec interface graphique et API d’addons.`
+4. Description du dépôt (champ « About ») :
+
+```text
+Lanceur de serveurs Minecraft tout-en-un : Paper, Spigot, Bukkit, Fabric, Forge, NeoForge et hybrides. Installe automatiquement vos plugins et vos mods, détecte la plateforme, affiche le plan de chargement (/plm) et pilote tout depuis une interface graphique.
+```
+
+5. Sujets (topics) conseillés : `minecraft`, `paper`, `fabric`, `forge`, `neoforge`, `spigot`, `bukkit`, `server`, `launcher`, `mohist`.
+6. Titre de section Release : mettre à jour le numéro selon le CHANGELOG courant (voir plus bas).
 
 ## Release
 
