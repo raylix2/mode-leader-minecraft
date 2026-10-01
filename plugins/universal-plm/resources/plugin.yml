@@ -1,0 +1,14 @@
+name: UniversalPLM
+version: 1.0.0
+main: fr.universalserverloader.plm.UniversalPlmPlugin
+api-version: '1.21'
+description: Affiche les plugins actifs et les mods détectés avec /plm.
+commands:
+  plm:
+    description: Affiche les plugins actifs et les mods présents.
+    usage: /plm
+    permission: universalplm.use
+permissions:
+  universalplm.use:
+    description: Autorise la commande /plm.
+    default: true

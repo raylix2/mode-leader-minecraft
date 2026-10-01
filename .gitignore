@@ -1,0 +1,31 @@
+# Build outputs
+/build/
+/out/
+/release/
+/A-PUBLIER-SUR-GITHUB/
+/.gradle/
+*.class
+*.jar
+
+# Local Minecraft runtime (worlds, logs, users, downloaded server and plugins)
+/UniversalServer/
+/cache/
+/libraries/
+/versions/
+
+# IDE and operating system files
+/.idea/
+/.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local tooling (never publish)
+/.freebuff/
+/.ssh/
+
+# Runtime and diagnostic files
+*.log
+*.lck
+*.lock
+hs_err_pid*

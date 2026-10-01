@@ -1,0 +1,7 @@
+{
+  "id": "example-addon",
+  "name": "Example Addon",
+  "version": "1.0.0",
+  "main": "com.example.ExampleAddon",
+  "apiVersion": "1"
+}

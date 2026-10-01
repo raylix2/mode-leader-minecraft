@@ -1,0 +1,17 @@
+{
+  "serverJar": "server.jar",
+  "platform": "paper",
+  "targetMinecraftVersion": "1.21.11",
+  "minimumJavaVersion": 21,
+  "minMemory": "512M",
+  "maxMemory": "2G",
+  "agreeToEula": false,
+  "autoRestart": false,
+  "scanPlugins": true,
+  "scanMods": true,
+  "scanAddons": true,
+  "maxCrashRestarts": 3,
+  "restartBackoffSeconds": 10,
+  "javaArguments": [],
+  "serverArguments": ["--nogui"]
+}

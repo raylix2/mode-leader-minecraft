@@ -1,0 +1,24 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'fr.universalserverloader'
+version = '0.3.8'
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+application {
+    mainClass = 'fr.universalserverloader.Main'
+}
+
+jar {
+    manifest { attributes 'Main-Class': application.mainClass }
+}
+
+tasks.register('runPrototypeTests', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'fr.universalserverloader.AllTests'
+}
