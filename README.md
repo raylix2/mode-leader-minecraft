@@ -1,6 +1,8 @@
 # UniversalServerLoader
 
-UniversalServerLoader est un lanceur et superviseur local pour serveurs Minecraft Java. Il fournit une interface sombre, une console en direct, la gestion propre du processus Paper, le réglage de la mémoire, des métriques propres au serveur et un inventaire clair des extensions.
+**Ajoutez des mods et des plugins à votre serveur Minecraft — Fabric, Forge, NeoForge, Paper, Spigot, Bukkit et les serveurs hybrides, tout est géré.**
+
+UniversalServerLoader est un lanceur et superviseur local pour serveurs Minecraft Java. Il fournit une interface sombre, une console en direct, la gestion propre du processus serveur, le réglage de la mémoire, des métriques propres au serveur et un inventaire clair des extensions. Il détecte automatiquement la plateforme de votre `server.jar`, installe vos plugins et vos mods au bon endroit, et vous dit exactement ce qui est chargé — et pourquoi ce qui ne l'est pas.
 
 La version actuelle cible **Paper 1.21.11 avec Java 21**. Le loader ne modifie pas Minecraft et ne prétend pas rendre Paper, Forge et Fabric compatibles entre eux.
 
