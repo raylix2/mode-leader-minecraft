@@ -7,7 +7,7 @@ import java.nio.file.Path;
 public final class WorkspaceInitializer {
     private static final String[] DIRECTORIES = {
             "config", "plugins", "plugins/bukkit", "plugins/spigot", "plugins/paper",
-            "mods", "mods/forge", "mods/fabric", "addons", "addons-data", "logs", "runtime"
+            "mods", "mods/forge", "mods/fabric", "mods/neoforge", "addons", "addons-data", "logs", "runtime"
     };
 
     public void initialize(Path root) throws IOException {

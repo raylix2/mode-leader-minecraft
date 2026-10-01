@@ -1,6 +1,6 @@
 {
   "serverJar": "server.jar",
-  "platform": "paper",
+  "platform": "auto",
   "targetMinecraftVersion": "1.21.11",
   "minimumJavaVersion": 21,
   "minMemory": "512M",
@@ -10,6 +10,8 @@
   "scanPlugins": true,
   "scanMods": true,
   "scanAddons": true,
+  "installStagedPlugins": true,
+  "stageMods": true,
   "maxCrashRestarts": 3,
   "restartBackoffSeconds": 10,
   "javaArguments": [],

@@ -57,10 +57,19 @@ public final class ServerLauncher {
             pump.start();
             BufferedWriter input = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
             BufferedReader console = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
+            boolean consoleClosed = false;
             logger.log("Serveur actif. Commandes loader: stop, restart, status, help. Les autres lignes vont au serveur.");
             while (process.isAlive()) {
                 String line = control.poll();
-                if (line == null && console.ready()) line = console.readLine();
+                if (line == null && !consoleClosed) {
+                    try {
+                        if (console.ready()) {
+                            String typed = console.readLine();
+                            if (typed == null) consoleClosed = true; // flux fermé: on ne boucle plus dessus
+                            else line = typed;
+                        }
+                    } catch (IOException e) { consoleClosed = true; }
+                }
                 if (line != null) {
                     String normalized = line.trim().toLowerCase();
                     if ("stop".equals(normalized) || "restart".equals(normalized)) {

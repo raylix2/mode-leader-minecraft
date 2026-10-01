@@ -7,6 +7,9 @@ La version actuelle cible **Paper 1.21.11 avec Java 21**. Le loader ne modifie p
 ## Fonctionnalités
 
 - démarrage d’un `server.jar` existant avec `ProcessBuilder` ;
+- **détection automatique de la plateforme** (Paper, Spigot, Bukkit, Fabric, Forge, NeoForge, hybrides Mohist/Arclight/CatServer) depuis le contenu du server.jar ;
+- **installation automatique** des plugins déposés dans `plugins/{bukkit,spigot,paper}` et des mods de `mods/{fabric,forge,neoforge}` vers les dossiers réellement lus par le serveur ;
+- **plan de chargement** : ce qui sera chargé, ce qui est bloqué et pourquoi (`scan`, `runtime/load-plan.txt`, commande `/plm` en jeu) ;
 - interface graphique avec console, commandes, état et uptime ;
 - boutons démarrer, arrêter et redémarrer ;
 - limites mémoire configurables (`Xms` 512 Mio, `Xmx` réglable) ;
@@ -24,11 +27,11 @@ La version actuelle cible **Paper 1.21.11 avec Java 21**. Le loader ne modifie p
 
 - il ne distribue ni Minecraft ni Paper ;
 - il ne télécharge pas automatiquement de serveur ;
-- il ne charge pas un mod Forge ou Fabric dans Paper ;
+- il ne transforme pas Paper en serveur à mods : Paper ne peut pas exécuter des mods Forge/Fabric (limite de Minecraft) ; le loader détecte ce cas, l’explique et vous oriente vers un serveur Fabric/Forge ou un hybride (voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)) ;
 - il ne fusionne pas plusieurs mod loaders dans un même processus ;
 - il ne garantit pas l’absence totale de crash ou de lag.
 
-Les profils Fabric et Forge doivent utiliser des serveurs séparés avec leurs propres runtimes et dossiers de mods.
+Pour faire tourner plugins **et** mods dans un seul processus, placez un serveur hybride (Mohist, Arclight, CatServer…) sous le nom `server.jar` : le loader détecte la plateforme et installe plugins et mods automatiquement.
 
 ## Installation rapide
 
@@ -71,7 +74,7 @@ Le fichier `UniversalServer/config/loader.json` est créé avec une configuratio
 ```json
 {
   "serverJar": "server.jar",
-  "platform": "paper",
+  "platform": "auto",
   "targetMinecraftVersion": "1.21.11",
   "minimumJavaVersion": 21,
   "minMemory": "512M",
@@ -81,12 +84,16 @@ Le fichier `UniversalServer/config/loader.json` est créé avec une configuratio
   "scanPlugins": true,
   "scanMods": true,
   "scanAddons": true,
+  "installStagedPlugins": true,
+  "stageMods": true,
   "maxCrashRestarts": 3,
   "restartBackoffSeconds": 10,
   "javaArguments": [],
   "serverArguments": ["--nogui"]
 }
 ```
+
+`platform` accepte `auto` (défaut : détecté depuis le contenu du server.jar) ou une valeur explicite : `paper`, `spigot`, `bukkit`, `fabric`, `forge`, `neoforge`, `hybrid-forge`, `hybrid-fabric`.
 
 `agreeToEula` reste toujours désactivé par défaut. Le programme ne l’active qu’après une confirmation explicite dans l’interface.
 
@@ -105,18 +112,27 @@ java -jar universal-loader.jar help
 java -jar universal-loader.jar version
 ```
 
-Dans Minecraft, `/plm` affiche les plugins Paper actifs et inventorie séparément les mods présents. Les mods signalés comme inactifs ne sont jamais injectés dans Paper.
+Dans Minecraft, `/plm` affiche la plateforme détectée, les plugins actifs et, pour chaque mod, son **mode de chargement** ou la raison exacte de son blocage.
 
 ## Plugins et mods
 
-Les plugins Paper doivent être placés directement dans `UniversalServer/plugins/`. Les JAR Forge et Fabric restent dans leurs dossiers respectifs pour un futur profil séparé :
+Le loader installe lui-même les extensions au bon endroit, d’après le contenu réel de chaque JAR (et pas seulement son dossier) :
 
 ```text
-UniversalServer/mods/forge/
-UniversalServer/mods/fabric/
+UniversalServer/plugins/                <- lu par Paper, Spigot, Bukkit (et les hybrides)
+UniversalServer/plugins/{bukkit,spigot,paper}/   <- boîtes de réception, copiés vers plugins/
+UniversalServer/mods/                   <- lu par Fabric, Forge, NeoForge (et les hybrides)
+UniversalServer/mods/{fabric,forge,neoforge}/    <- boîtes de réception, copiés vers mods/
+UniversalServer/addons/                 <- addons UniversalAddon du loader
 ```
 
-Un JAR non compatible n’est jamais exécuté aveuglément. Les fichiers qui ne se terminent pas par `.jar` sont refusés comme extensions.
+Un JAR déposé au mauvais endroit n’est jamais exécuté aveuglément : le plan de chargement (`scan`) indique quoi faire. Les copies créées par le loader sont tracées dans `runtime/staged-mods.txt` et retirées automatiquement si vous changez de plateforme ; vos fichiers d’origine ne sont jamais supprimés.
+
+## Documentation
+
+- [docs/FONCTIONNEMENT.md](docs/FONCTIONNEMENT.md) — fonctionnement interne, étape par étape ;
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — multi-modloaders, détection, options pour vos mods ;
+- [docs/AUDIT.md](docs/AUDIT.md) — audit du code et corrections appliquées.
 
 ## Compilation
 

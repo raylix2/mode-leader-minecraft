@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 public final class ConfigManager {
     public static final String DEFAULT_JSON = "{\n" +
             "  \"serverJar\": \"server.jar\",\n" +
-            "  \"platform\": \"paper\",\n" +
+            "  \"platform\": \"auto\",\n" +
             "  \"targetMinecraftVersion\": \"1.21.11\",\n" +
             "  \"minimumJavaVersion\": 21,\n" +
             "  \"minMemory\": \"512M\",\n" +
@@ -25,6 +25,8 @@ public final class ConfigManager {
             "  \"scanPlugins\": true,\n" +
             "  \"scanMods\": true,\n" +
             "  \"scanAddons\": true,\n" +
+            "  \"installStagedPlugins\": true,\n" +
+            "  \"stageMods\": true,\n" +
             "  \"maxCrashRestarts\": 3,\n" +
             "  \"restartBackoffSeconds\": 10,\n" +
             "  \"javaArguments\": [],\n" +
@@ -51,10 +53,14 @@ public final class ConfigManager {
         c.scanPlugins = bool(json, "scanPlugins", c.scanPlugins);
         c.scanMods = bool(json, "scanMods", c.scanMods);
         c.scanAddons = bool(json, "scanAddons", c.scanAddons);
+        c.installStagedPlugins = bool(json, "installStagedPlugins", c.installStagedPlugins);
+        c.stageMods = bool(json, "stageMods", c.stageMods);
         c.maxCrashRestarts = integer(json, "maxCrashRestarts", c.maxCrashRestarts, 0, 20);
         c.restartBackoffSeconds = integer(json, "restartBackoffSeconds", c.restartBackoffSeconds, 1, 300);
         c.javaArguments = array(json, "javaArguments");
         c.serverArguments = array(json, "serverArguments");
+        if (memoryToMiB(c.minMemory) > memoryToMiB(c.maxMemory))
+            throw new IOException("minMemory (" + c.minMemory + ") dépasse maxMemory (" + c.maxMemory + ")");
         return c;
     }
 
@@ -130,5 +136,15 @@ public final class ConfigManager {
         if (!value.matches("(?i)[1-9][0-9]*[KMG]"))
             throw new IOException("Valeur " + key + " invalide: " + value + " (exemple attendu: 1G)");
         return value.toUpperCase();
+    }
+
+    /** Conversion K/M/G vers MiB pour la validation croisée. */
+    private static long memoryToMiB(String value) {
+        String normalized = value.trim().toUpperCase();
+        long amount = Long.parseLong(normalized.substring(0, normalized.length() - 1));
+        char unit = normalized.charAt(normalized.length() - 1);
+        if (unit == 'K') return Math.max(1, amount / 1024);
+        if (unit == 'G') return amount * 1024;
+        return amount;
     }
 }

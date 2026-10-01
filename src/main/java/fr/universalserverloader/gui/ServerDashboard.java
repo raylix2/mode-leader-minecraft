@@ -4,6 +4,7 @@ import fr.universalserverloader.Main;
 import fr.universalserverloader.config.ConfigManager;
 import fr.universalserverloader.config.LoaderConfig;
 import fr.universalserverloader.launcher.InstanceControl;
+import fr.universalserverloader.platform.PlatformInfo;
 import java.awt.BorderLayout;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -46,8 +47,11 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Properties;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -135,7 +139,7 @@ public final class ServerDashboard extends JFrame {
     }
 
     private ServerDashboard(Path root, LoaderConfig config) throws Exception {
-        super("UniversalServerLoader — Paper 1.21.11");
+        super("UniversalServerLoader — " + frameTitle(root, config));
         this.root = root;
         this.config = config;
         Files.createDirectories(root.resolve("runtime"));
@@ -189,7 +193,7 @@ public final class ServerDashboard extends JFrame {
         JPanel branding = panel(new BorderLayout(0, 3));
         JLabel title = new JLabel("UNIVERSAL SERVER");
         title.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22)); title.setForeground(TEXT);
-        JLabel subtitle = new JLabel("Paper 1.21.11   /   panneau de contrôle local");
+        JLabel subtitle = new JLabel(frameTitle(root, config) + "   /   panneau de contrôle local");
         subtitle.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12)); subtitle.setForeground(MUTED);
         branding.add(title, BorderLayout.NORTH); branding.add(subtitle, BorderLayout.SOUTH);
         JPanel indicators = panel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
@@ -547,14 +551,99 @@ public final class ServerDashboard extends JFrame {
             boolean world = Files.isRegularFile(root.resolve("world/level.dat"));
             String seed = readSeed();
             StringBuilder text = new StringBuilder();
+            PlanInfo plan = readPlan();
             text.append("SERVEUR\n");
-            text.append("  Plateforme : Paper\n  Minecraft  : 1.21.11\n  Mémoire    : ").append(config.minMemory).append(" / ").append(config.maxMemory).append("\n");
-            text.append("  Spark      : intégré à Paper\n  Plugins    : Chunky, LuckPerms\n\n");
+            text.append("  Plateforme : ").append(frameTitle(root, config)).append('\n');
+            text.append("  Chargeable : plugins ").append(plan == null ? "?" : plan.pluginsBukkit)
+                .append(", mods ").append(plan == null ? "?" : (plan.modLoader.equals("-") || plan.modLoader.length() == 0 ? "aucun" : plan.modLoader)).append('\n');
+            text.append("  Minecraft  : ").append(config.targetMinecraftVersion)
+                .append("\n  Mémoire    : ").append(config.minMemory).append(" / ").append(config.maxMemory).append("\n");
+            text.append("  Spark      : intégré à Paper\n  Plugins    : ").append(pluginNames()).append('\n');
+            text.append("  Mods       : ").append(modSummary(plan)).append("\n\n");
             text.append("MACHINE\n  Java       : ").append(System.getProperty("java.version")).append("\n  OS         : ").append(System.getProperty("os.name")).append(' ').append(System.getProperty("os.version")).append("\n");
             text.append("  CPU        : ").append(Runtime.getRuntime().availableProcessors()).append(" threads logiques\n  RAM totale : ").append(totalRam > 0 ? totalRam + " Gio" : "indisponible").append("\n  Disque libre: ").append(freeDisk).append(" Gio\n\n");
             text.append("MONDE\n  État       : ").append(world ? "généré" : "sera généré au démarrage").append("\n  Nom        : world\n  Graine     : ").append(seed).append("\n");
             specs.setText(text.toString());
         } catch (Exception e) { specs.setText("Diagnostic indisponible : " + e.getMessage()); }
+    }
+
+    /** Intitulé lisible : libellé de la plateforme détectée, sinon plateforme déclarée. */
+    private static String frameTitle(Path root, LoaderConfig config) {
+        String label = null;
+        Path plan = root.resolve("runtime/load-plan.txt");
+        try {
+            if (Files.isRegularFile(plan)) {
+                for (String line : Files.readAllLines(plan, StandardCharsets.UTF_8)) {
+                    if (!line.startsWith("# plateforme=")) continue;
+                    for (String token : line.substring(2).split(" "))
+                        if (token.startsWith("label=")) label = token.substring(6);
+                    break;
+                }
+            }
+        } catch (Exception ignored) { }
+        if (label == null || label.length() == 0) {
+            PlatformInfo declared = PlatformInfo.of(config.platform, false);
+            if (PlatformInfo.isAuto(config.platform) || declared.isUnknown()) label = "Serveur Minecraft";
+            else label = declared.label;
+        }
+        return label + " " + config.targetMinecraftVersion;
+    }
+
+    /** Plan de chargement écrit par le loader au dernier scan ou démarrage. */
+    private PlanInfo readPlan() {
+        Path file = root.resolve("runtime/load-plan.txt");
+        if (!Files.isRegularFile(file)) return null;
+        PlanInfo plan = new PlanInfo();
+        try {
+            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                if (line.startsWith("# plateforme=")) {
+                    plan.present = true;
+                    for (String token : line.substring(2).split(" ")) {
+                        if (token.startsWith("label=")) plan.label = token.substring(6);
+                        else if (token.startsWith("plugins=")) plan.pluginsBukkit = token.substring(8);
+                        else if (token.startsWith("modloader=")) plan.modLoader = token.substring(10);
+                    }
+                } else if (line.startsWith("# resume=")) plan.resume = line.substring(9);
+                else if (line.startsWith("OUI\tmods/")) plan.modsLoaded++;
+                else if (line.startsWith("NON\tmods/")) plan.modsBlocked++;
+            }
+        } catch (Exception e) { return null; }
+        return plan.present ? plan : null;
+    }
+
+    private String modSummary(PlanInfo plan) {
+        if (plan == null) return "non détecté (lancez un scan)";
+        if (plan.modsLoaded + plan.modsBlocked == 0) return "aucun";
+        return plan.modsLoaded + " chargé(s), " + plan.modsBlocked + " non chargé(s)";
+    }
+
+    private String pluginNames() {
+        List<String> names = new ArrayList<String>();
+        try (java.nio.file.DirectoryStream<Path> entries = Files.newDirectoryStream(root.resolve("plugins"), "*.jar")) {
+            for (Path entry : entries) {
+                String name = entry.getFileName().toString();
+                if (name.length() > 4) names.add(name.substring(0, name.length() - 4));
+            }
+        } catch (Exception ignored) { }
+        Collections.sort(names);
+        if (names.isEmpty()) return "aucun";
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < names.size() && i < 3; i++) {
+            if (i > 0) out.append(", ");
+            out.append(names.get(i));
+        }
+        if (names.size() > 3) out.append(" ... (+").append(names.size() - 3).append(')');
+        return out.toString();
+    }
+
+    private static final class PlanInfo {
+        boolean present;
+        String label = "";
+        String pluginsBukkit = "?";
+        String modLoader = "-";
+        String resume = "";
+        int modsLoaded;
+        int modsBlocked;
     }
 
     private String readSeed() {
@@ -589,15 +678,18 @@ public final class ServerDashboard extends JFrame {
     }
 
     private void closeWindow() {
-        if (process != null && process.isAlive()) {
-            int answer = JOptionPane.showConfirmDialog(this, "Arrêter proprement le serveur avant de fermer ?",
-                    "Serveur actif", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-            if (answer == JOptionPane.CANCEL_OPTION || answer == JOptionPane.CLOSED_OPTION) return;
-            if (answer == JOptionPane.YES_OPTION) sendCommand("stop");
+        try {
+            if (process != null && process.isAlive()) {
+                int answer = JOptionPane.showConfirmDialog(this, "Arrêter proprement le serveur avant de fermer ?",
+                        "Serveur actif", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (answer == JOptionPane.CANCEL_OPTION || answer == JOptionPane.CLOSED_OPTION) return;
+                if (answer == JOptionPane.YES_OPTION) sendCommand("stop");
+            }
+            metricsMonitorRunning = false;
+            closeMetricsConnection();
+        } finally {
+            dispose(); // déclenche windowClosed -> releaseGuiLock, même en cas d'erreur
         }
-        metricsMonitorRunning = false;
-        closeMetricsConnection();
-        dispose();
     }
 
     private void releaseGuiLock() {

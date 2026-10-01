@@ -13,8 +13,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
@@ -26,6 +28,7 @@ public final class AddonManager implements Closeable {
     private final List<UniversalAddon> addons = new ArrayList<UniversalAddon>();
     private final List<URLClassLoader> loaders = new ArrayList<URLClassLoader>();
     private final Map<String, UniversalCommand> commands = new HashMap<String, UniversalCommand>();
+    private final Set<String> ids = new HashSet<String>();
 
     public AddonManager(Path root, DualLogger logger) { this.root = root; this.logger = logger; }
 
@@ -50,24 +53,33 @@ public final class AddonManager implements Closeable {
             json = new String(data.toByteArray(), StandardCharsets.UTF_8);
         }
         final String id = field(json, "id");
+        if (ids.contains(id)) throw new IOException("identifiant d'addon déjà utilisé: " + id);
         String main = field(json, "main");
         String api = field(json, "apiVersion");
         if (!"1".equals(api)) throw new IOException("apiVersion non supportée: " + api);
         final Path dataFolder = root.resolve("addons-data").resolve(id);
         Files.createDirectories(dataFolder);
         URLClassLoader loader = new URLClassLoader(new java.net.URL[]{path.toUri().toURL()}, UniversalAddon.class.getClassLoader());
-        Object instance = Class.forName(main, true, loader).newInstance();
+        Object instance;
+        try { instance = Class.forName(main, true, loader).newInstance(); }
+        catch (Exception e) { loader.close(); throw new IOException("classe main illisible: " + e.getMessage()); }
         if (!(instance instanceof UniversalAddon)) { loader.close(); throw new IOException("la classe main n'implémente pas UniversalAddon"); }
         UniversalAddon addon = (UniversalAddon) instance;
-        addon.onEnable(new UniversalContext() {
-            public void log(String message) { logger.log("[" + id + "] " + message); }
-            public Path dataFolder() { return dataFolder; }
-            public void registerCommand(String name, UniversalCommand command) {
-                if (!name.matches("[a-zA-Z0-9_-]+")) throw new IllegalArgumentException("Nom de commande invalide");
-                commands.put(name.toLowerCase(), command);
-            }
-        });
-        addons.add(addon); loaders.add(loader);
+        addons.add(addon); loaders.add(loader); ids.add(id);
+        try {
+            addon.onEnable(new UniversalContext() {
+                public void log(String message) { logger.log("[" + id + "] " + message); }
+                public Path dataFolder() { return dataFolder; }
+                public void registerCommand(String name, UniversalCommand command) {
+                    if (!name.matches("[a-zA-Z0-9_-]+")) throw new IllegalArgumentException("Nom de commande invalide");
+                    if (commands.containsKey(name.toLowerCase())) throw new IllegalArgumentException("Commande déjà enregistrée: " + name);
+                    commands.put(name.toLowerCase(), command);
+                }
+            });
+        } catch (Exception e) {
+            // L'addon est enregistré : close() le désactivera proprement malgré l'échec de onEnable.
+            throw new IOException("échec de onEnable: " + e.getMessage());
+        }
         logger.log("[ADDON] Activé: " + id);
     }
 

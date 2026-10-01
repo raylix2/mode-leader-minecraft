@@ -9,6 +9,10 @@ import fr.universalserverloader.config.LoaderConfig;
 import fr.universalserverloader.discovery.DiscoveryService;
 import fr.universalserverloader.discovery.ExtensionInfo;
 import fr.universalserverloader.discovery.ServerJarDetector;
+import fr.universalserverloader.platform.ExtensionInstaller;
+import fr.universalserverloader.platform.LoadPlan;
+import fr.universalserverloader.platform.PlatformDetector;
+import fr.universalserverloader.platform.PlatformInfo;
 import fr.universalserverloader.diagnostics.BenchmarkService;
 import fr.universalserverloader.diagnostics.DoctorService;
 import fr.universalserverloader.diagnostics.JavaRuntime;
@@ -26,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Main {
-    public static final String VERSION = "0.3.8-paper-1.21.11";
+    public static final String VERSION = "0.4.0";
 
     public static void main(String[] args) {
         int code = 0;
@@ -66,15 +70,29 @@ public final class Main {
             System.out.println("Commande " + parsed.command.name().toLowerCase() + " envoyée."); return 0;
         }
 
+        Path serverJar = new ServerJarDetector().detect(root, config.serverJar);
+        PlatformDetector.Result detected = new PlatformDetector().detect(serverJar, config.platform);
+        PlatformInfo platform = detected.platform;
+
+        // Installation réelle des extensions là où la plateforme va les chercher.
+        List<String> actions = new ArrayList<String>();
+        ExtensionInstaller installer = new ExtensionInstaller();
+        if (config.installStagedPlugins && config.scanPlugins && platform.bukkitPlugins)
+            actions.addAll(installer.installStagedPlugins(root));
+        if (config.stageMods && config.scanMods)
+            actions.addAll(installer.stageMods(root, platform));
+
         DiscoveryService discovery = new DiscoveryService();
         List<ExtensionInfo> items = discovery.scan(root, config);
-        String report = new CompatibilityReporter().create(root, items);
+        LoadPlan plan = new LoadPlan(root, platform, detected.warning,
+                config.installStagedPlugins, config.stageMods, items);
+        plan.write(root.resolve("runtime/load-plan.txt"), VERSION);
+        String report = new CompatibilityReporter().create(root, items, plan, actions);
         System.out.print(report);
         if (parsed.command == CliCommand.SCAN) return 0;
 
-        Path serverJar = new ServerJarDetector().detect(root, config.serverJar);
         if (parsed.command == CliCommand.DOCTOR) {
-            System.out.print(new DoctorService().diagnose(root, config, serverJar, items)); return 0;
+            System.out.print(new DoctorService().diagnose(root, config, serverJar, plan)); return 0;
         }
         if (parsed.command == CliCommand.BENCHMARK) {
             System.out.print(new BenchmarkService().run(root, serverJar)); return 0;
